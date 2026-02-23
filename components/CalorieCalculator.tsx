@@ -142,7 +142,7 @@ export default function CalorieCalculator({ onConfirm, onClose }: Props) {
               <div className="flex-1 flex items-center gap-1.5">
                 <input
                   type="number"
-                  value={heightIn || ""}
+                  value={heightIn}
                   onChange={(e) => setHeightIn(e.target.value === "" ? 0 : Number(e.target.value))}
                   min={0}
                   max={11}

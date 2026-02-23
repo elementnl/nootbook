@@ -7,6 +7,7 @@ import FoodInput from "@/components/FoodInput";
 import DiaryEntry from "@/components/DiaryEntry";
 import DiarySummary from "@/components/DiarySummary";
 import MealGroup from "@/components/MealGroup";
+import StandaloneGroup from "@/components/StandaloneGroup";
 import DateNavigator from "@/components/DateNavigator";
 
 export default async function Home({
@@ -79,12 +80,10 @@ export default async function Home({
 
         {standalone.length > 0 && (
           <div
-            className="bg-bg-surface rounded-xl border border-border px-4 animate-fade-in-up hover-lift"
+            className="animate-fade-in-up"
             style={{ animationDelay: `${(mealGroupCount + 1) * 60}ms` }}
           >
-            {standalone.map((entry) => (
-              <DiaryEntry key={entry.id} entry={entry} />
-            ))}
+            <StandaloneGroup entries={standalone} />
           </div>
         )}
 
