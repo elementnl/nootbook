@@ -1,65 +1,127 @@
-import Image from "next/image";
+export const dynamic = "force-dynamic";
 
-export default function Home() {
+import { createServerSupabase } from "@/lib/supabase/server";
+import { FoodEntry, DailyGoals } from "@/lib/types";
+import { getTodayEastern } from "@/lib/date";
+import FoodInput from "@/components/FoodInput";
+import DiaryEntry from "@/components/DiaryEntry";
+import DiarySummary from "@/components/DiarySummary";
+import MealGroup from "@/components/MealGroup";
+import DateNavigator from "@/components/DateNavigator";
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
+  const { date } = await searchParams;
+  const today = getTodayEastern();
+  const selectedDate = date || today;
+  const isToday = selectedDate === today;
+
+  const supabase = await createServerSupabase();
+
+  const [entriesResult, goalsResult] = await Promise.all([
+    supabase
+      .from("noot_food_entries")
+      .select("*, noot_meals(name)")
+      .eq("date", selectedDate)
+      .order("created_at", { ascending: true }),
+    supabase.from("noot_daily_goals").select("*").limit(1).single(),
+  ]);
+
+  const entries: FoodEntry[] = entriesResult.data ?? [];
+  const goals: DailyGoals | null = goalsResult.data;
+
+  // Group entries: standalone vs meal-grouped
+  const standalone: FoodEntry[] = [];
+  const mealGroups: Record<string, { name: string; entries: FoodEntry[] }> = {};
+
+  for (const entry of entries) {
+    if (entry.meal_id) {
+      if (!mealGroups[entry.meal_id]) {
+        const mealData = entry as FoodEntry & { noot_meals?: { name: string } };
+        mealGroups[entry.meal_id] = {
+          name: mealData.noot_meals?.name ?? "Meal",
+          entries: [],
+        };
+      }
+      mealGroups[entry.meal_id].entries.push(entry);
+    } else {
+      standalone.push(entry);
+    }
+  }
+
+  const mealGroupCount = Object.keys(mealGroups).length;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className={`max-w-lg md:max-w-2xl mx-auto px-4 md:px-8 ${isToday ? "pb-44 md:pb-8" : "pb-24 md:pb-8"} pt-6 md:pt-8`}>
+      <DateNavigator date={selectedDate} />
+
+      <div className="mt-4 animate-fade-in-up">
+        <DiarySummary entries={entries} goals={goals} />
+      </div>
+
+      <div className="mt-4 space-y-2.5">
+        {Object.entries(mealGroups).map(([mealId, group], index) => (
+          <div
+            key={mealId}
+            className="animate-fade-in-up"
+            style={{ animationDelay: `${(index + 1) * 60}ms` }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            <MealGroup
+              mealId={mealId}
+              mealName={group.name}
+              entries={group.entries}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+        ))}
+
+        {standalone.length > 0 && (
+          <div
+            className="bg-bg-surface rounded-xl border border-border px-4 animate-fade-in-up hover-lift"
+            style={{ animationDelay: `${(mealGroupCount + 1) * 60}ms` }}
           >
-            Documentation
-          </a>
+            {standalone.map((entry) => (
+              <DiaryEntry key={entry.id} entry={entry} />
+            ))}
+          </div>
+        )}
+
+        {entries.length === 0 && (
+          <div className="text-center py-10 animate-fade-in-up">
+            <p className="text-text-muted text-sm">
+              {isToday ? "No entries yet today." : "No entries for this day."}
+            </p>
+            {isToday && (
+              <p className="text-text-muted text-xs mt-1">
+                Add something you ate below
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Mobile: fixed bottom dock */}
+      {isToday && (
+        <div className="md:hidden fixed bottom-14 left-0 right-0 bg-input-dock-bg backdrop-blur-xl border-t border-border p-3 z-40">
+          <div className="max-w-lg mx-auto">
+            <FoodInput date={today} />
+          </div>
         </div>
-      </main>
+      )}
+
+      {/* Desktop: inline input area */}
+      {isToday && (
+        <div className="hidden md:block mt-6 animate-fade-in-up" style={{ animationDelay: `${(mealGroupCount + 2) * 60}ms` }}>
+          <div className="bg-bg-surface rounded-2xl border border-border p-5 hover-lift">
+            <p className="text-[10px] uppercase tracking-widest text-text-muted font-medium mb-3">
+              Add food
+            </p>
+            <FoodInput date={today} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
