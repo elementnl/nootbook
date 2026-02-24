@@ -8,6 +8,7 @@ export default function FoodInput({ date }: { date: string }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<ParsedFoodResponse | null>(null);
+  const [servings, setServings] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function FoodInput({ date }: { date: string }) {
     setLoading(true);
     setError(null);
     setPreview(null);
+    setServings(1);
 
     try {
       const res = await fetch("/api/parse-food", {
@@ -56,6 +58,7 @@ export default function FoodInput({ date }: { date: string }) {
         body: JSON.stringify({
           items: preview.items,
           meal_name: preview.meal_name,
+          servings,
           date,
         }),
       });
@@ -74,6 +77,7 @@ export default function FoodInput({ date }: { date: string }) {
 
   function handleCancel() {
     setPreview(null);
+    setServings(1);
     setError(null);
   }
 
@@ -83,13 +87,20 @@ export default function FoodInput({ date }: { date: string }) {
       {preview && (
         <div className="bg-bg-surface rounded-xl border border-border p-4 space-y-3 animate-scale-in">
           {preview.meal_name && (
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
-                Meal
-              </span>
-              <span className="font-display text-sm font-bold text-text-primary">
-                {preview.meal_name}
-              </span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-widest font-medium text-accent">
+                  Meal
+                </span>
+                <span className="font-display text-sm font-bold text-text-primary">
+                  {preview.meal_name}
+                </span>
+              </div>
+              {servings > 1 && (
+                <span className="text-[10px] uppercase tracking-widest text-text-muted font-medium">
+                  Per serving (1 of {servings})
+                </span>
+              )}
             </div>
           )}
           <div className="space-y-0">
@@ -108,7 +119,7 @@ export default function FoodInput({ date }: { date: string }) {
                 </div>
                 <div className="flex items-center gap-1 text-xs">
                   <span className="font-medium text-text-primary tabular-nums">
-                    {Math.round(item.calories)}
+                    {Math.round(item.calories / servings)}
                   </span>
                   <span className="text-text-muted">cal</span>
                 </div>
@@ -119,23 +130,52 @@ export default function FoodInput({ date }: { date: string }) {
             <div className="pt-2 border-t border-border flex items-center justify-between">
               <div className="flex gap-3 text-[10px] tracking-wide text-text-muted">
                 <span className="text-macro-protein">
-                  P {Math.round(preview.items.reduce((s, i) => s + i.protein_g, 0))}g
+                  P {Math.round(preview.items.reduce((s, i) => s + i.protein_g, 0) / servings)}g
                 </span>
                 <span className="text-macro-carbs">
-                  C {Math.round(preview.items.reduce((s, i) => s + i.carbs_g, 0))}g
+                  C {Math.round(preview.items.reduce((s, i) => s + i.carbs_g, 0) / servings)}g
                 </span>
                 <span className="text-macro-fat">
-                  F {Math.round(preview.items.reduce((s, i) => s + i.fat_g, 0))}g
+                  F {Math.round(preview.items.reduce((s, i) => s + i.fat_g, 0) / servings)}g
                 </span>
               </div>
               <div className="flex items-center gap-1 text-sm">
                 <span className="font-display font-bold text-text-primary tabular-nums">
-                  {Math.round(preview.items.reduce((s, i) => s + i.calories, 0))}
+                  {Math.round(preview.items.reduce((s, i) => s + i.calories, 0) / servings)}
                 </span>
                 <span className="text-xs text-text-muted">cal</span>
               </div>
             </div>
           )}
+
+          {/* Servings stepper */}
+          {preview.meal_name && (
+            <div className="flex items-center justify-between pt-2 border-t border-border-light">
+              <span className="text-[10px] uppercase tracking-widest text-text-muted font-medium">
+                Servings
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setServings(Math.max(1, servings - 1))}
+                  disabled={servings <= 1}
+                  className="w-7 h-7 rounded-lg bg-bg-input border border-border text-text-secondary flex items-center justify-center text-sm font-medium disabled:opacity-30 transition-colors hover:bg-bg-surface-hover press-scale"
+                >
+                  −
+                </button>
+                <span className="font-display text-sm font-bold text-text-primary tabular-nums w-6 text-center">
+                  {servings}
+                </span>
+                <button
+                  onClick={() => setServings(Math.min(12, servings + 1))}
+                  disabled={servings >= 12}
+                  className="w-7 h-7 rounded-lg bg-bg-input border border-border text-text-secondary flex items-center justify-center text-sm font-medium disabled:opacity-30 transition-colors hover:bg-bg-surface-hover press-scale"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2 pt-1">
             <button
               onClick={handleConfirm}

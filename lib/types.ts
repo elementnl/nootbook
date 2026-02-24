@@ -22,6 +22,7 @@ export interface Meal {
   id: string;
   name: string;
   is_template: boolean;
+  servings: number;
   created_at: string;
 }
 

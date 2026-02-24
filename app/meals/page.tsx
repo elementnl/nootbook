@@ -11,6 +11,7 @@ interface MealWithEntries extends Meal {
 export default function MealsPage() {
   const [meals, setMeals] = useState<MealWithEntries[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fullRecipeIds, setFullRecipeIds] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   useEffect(() => {
@@ -74,10 +75,13 @@ export default function MealsPage() {
       ) : (
         <div className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
           {meals.map((meal, index) => {
+            const s = meal.servings ?? 1;
+            const isFullRecipe = fullRecipeIds.has(meal.id);
+            const multiplier = isFullRecipe ? s : 1;
             const totalCal = meal.noot_food_entries.reduce(
               (sum, e) => sum + e.calories,
               0
-            );
+            ) * multiplier;
 
             return (
               <div
@@ -93,6 +97,7 @@ export default function MealsPage() {
                     <p className="text-xs text-text-muted mt-0.5">
                       {meal.noot_food_entries.length} items &middot;{" "}
                       {Math.round(totalCal)} cal
+                      {s > 1 && ` · ${s} servings`}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -114,6 +119,23 @@ export default function MealsPage() {
                     </button>
                   </div>
                 </div>
+                {s > 1 && (
+                  <div className="mb-2">
+                    <button
+                      onClick={() => {
+                        setFullRecipeIds((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(meal.id)) next.delete(meal.id);
+                          else next.add(meal.id);
+                          return next;
+                        });
+                      }}
+                      className="text-[10px] uppercase tracking-widest text-accent font-medium hover:text-accent-hover transition-colors press-scale"
+                    >
+                      {isFullRecipe ? "Per serving" : "Full recipe"}
+                    </button>
+                  </div>
+                )}
                 <div className="border-t border-border-light pt-2 space-y-1.5">
                   {meal.noot_food_entries.map((entry) => (
                     <div
@@ -127,7 +149,7 @@ export default function MealsPage() {
                         </span>
                       </span>
                       <span className="text-text-muted tabular-nums">
-                        {Math.round(entry.calories)} cal
+                        {Math.round(entry.calories * multiplier)} cal
                       </span>
                     </div>
                   ))}

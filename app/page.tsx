@@ -25,7 +25,7 @@ export default async function Home({
   const [entriesResult, goalsResult] = await Promise.all([
     supabase
       .from("noot_food_entries")
-      .select("*, noot_meals(name)")
+      .select("*, noot_meals(name, is_template)")
       .eq("date", selectedDate)
       .order("created_at", { ascending: true }),
     supabase.from("noot_daily_goals").select("*").limit(1).single(),
@@ -36,14 +36,15 @@ export default async function Home({
 
   // Group entries: standalone vs meal-grouped
   const standalone: FoodEntry[] = [];
-  const mealGroups: Record<string, { name: string; entries: FoodEntry[] }> = {};
+  const mealGroups: Record<string, { name: string; isTemplate: boolean; entries: FoodEntry[] }> = {};
 
   for (const entry of entries) {
     if (entry.meal_id) {
       if (!mealGroups[entry.meal_id]) {
-        const mealData = entry as FoodEntry & { noot_meals?: { name: string } };
+        const mealData = entry as FoodEntry & { noot_meals?: { name: string; is_template: boolean } };
         mealGroups[entry.meal_id] = {
           name: mealData.noot_meals?.name ?? "Meal",
+          isTemplate: mealData.noot_meals?.is_template ?? false,
           entries: [],
         };
       }
@@ -74,6 +75,7 @@ export default async function Home({
               mealId={mealId}
               mealName={group.name}
               entries={group.entries}
+              isTemplate={group.isTemplate}
             />
           </div>
         ))}

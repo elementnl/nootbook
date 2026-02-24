@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { items, meal_name, date } = body;
+    const { items, meal_name, date, servings = 1 } = body;
 
     const supabase = await createServerSupabase();
     const {
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     if (meal_name) {
       const { data: meal, error: mealError } = await supabase
         .from("noot_meals")
-        .insert({ name: meal_name, is_template: false, user_id: user.id })
+        .insert({ name: meal_name, is_template: false, servings, user_id: user.id })
         .select()
         .single();
 
@@ -59,21 +59,22 @@ export async function POST(request: Request) {
       meal_id = meal.id;
     }
 
-    // Insert all food entries
+    // Insert all food entries (divide nutrition by servings)
+    const s = Number(servings) || 1;
     const entries = items.map((item: Record<string, unknown>) => ({
       date: entryDate,
       meal_id,
       name: item.name,
       quantity: item.quantity,
-      quantity_grams: item.quantity_grams,
-      calories: item.calories,
-      protein_g: item.protein_g,
-      carbs_g: item.carbs_g,
-      fat_g: item.fat_g,
-      fiber_g: item.fiber_g,
-      iron_mg: item.iron_mg,
-      sodium_mg: item.sodium_mg,
-      sugar_g: item.sugar_g,
+      quantity_grams: item.quantity_grams ? Number(item.quantity_grams) / s : item.quantity_grams,
+      calories: Number(item.calories) / s,
+      protein_g: Number(item.protein_g) / s,
+      carbs_g: Number(item.carbs_g) / s,
+      fat_g: Number(item.fat_g) / s,
+      fiber_g: item.fiber_g ? Number(item.fiber_g) / s : item.fiber_g,
+      iron_mg: item.iron_mg ? Number(item.iron_mg) / s : item.iron_mg,
+      sodium_mg: item.sodium_mg ? Number(item.sodium_mg) / s : item.sodium_mg,
+      sugar_g: item.sugar_g ? Number(item.sugar_g) / s : item.sugar_g,
       raw_ai_response: item,
       user_id: user.id,
     }));

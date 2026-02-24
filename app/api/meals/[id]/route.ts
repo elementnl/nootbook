@@ -95,7 +95,7 @@ export async function POST(
     // Create a new meal instance for today
     const { data: newMeal, error: mealError } = await supabase
       .from("noot_meals")
-      .insert({ name: template.name, is_template: false, user_id: user.id })
+      .insert({ name: template.name, is_template: false, servings: template.servings ?? 1, user_id: user.id })
       .select()
       .single();
 
